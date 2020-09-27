@@ -39,6 +39,9 @@ class DictionaryTreeView(QTreeView):
     def setData(self, data):
         self.model.setupModelData(data, self.model.rootItem)
 
+    def toDict(self):
+        return self.model.rootItem.toDict()
+
     def keyPressEvent(self, e):
         # Delete row on key press
         if e.key() == Qt.Key_Delete:
