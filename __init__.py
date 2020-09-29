@@ -37,7 +37,7 @@ class DictionaryTreeView(QTreeView):
         menu.exec(self.sender().viewport().mapToGlobal(position))
 
     def setData(self, data):
-        self.model.setupModelData(data, self.model.rootItem)
+        self.model.setupModelData(data)
 
     def toDict(self):
         return self.model.rootItem.toDict()
@@ -46,7 +46,7 @@ class DictionaryTreeView(QTreeView):
         # Delete row on key press
         if e.key() == Qt.Key_Delete:
             indexes = self.selectedIndexes()
-            
+
             if indexes:
                 key_index = indexes[0]
                 item = self.model.getItem(key_index)
@@ -60,12 +60,12 @@ class DictionaryTreeModel(QAbstractItemModel):
         super().__init__(parent)
 
         self.rootData = headers
-        self.rootItem = DictionaryTreeItem(self.rootData)
-        self.setupModelData(data, self.rootItem)
+        self.rootItem = None
+        self.setupModelData(data)
 
     def columnCount(self, parent=QModelIndex()):
         return self.rootItem.columnCount()
-    
+
     def data(self, index, role):
         if not index.isValid():
             return None
@@ -84,7 +84,7 @@ class DictionaryTreeModel(QAbstractItemModel):
         # Disable editing values of keys with children
         if index.column() != 0 and self.getItem(index).childItems:
             return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        
+
         return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def getItem(self, index):
@@ -130,7 +130,7 @@ class DictionaryTreeModel(QAbstractItemModel):
 
         self.beginInsertRows(parent, position, position + rows - 1)
         success = parentItem.insertChildren(position, rows,
-                self.rootItem.columnCount())
+                                            self.rootItem.columnCount())
         self.endInsertRows()
 
         return success
@@ -194,7 +194,10 @@ class DictionaryTreeModel(QAbstractItemModel):
 
         return result
 
-    def setupModelData(self, data, parent):
+    def setupModelData(self, data, parent=None):
+        if not parent:
+            parent = self.rootItem = DictionaryTreeItem(self.rootData)
+
         for k, v in data.items():
             if isinstance(v, dict):
                 parent.appendChild([k, None])
@@ -214,7 +217,7 @@ class DictionaryTreeModel(QAbstractItemModel):
 
             i += 1
 
-        item.appendChild([new_key, None])    
+        item.appendChild([new_key, None])
 
         # If not root item, clear parent value
         if item != self.rootItem:
@@ -331,4 +334,3 @@ class DictionaryTreeItem:
                 child._recurse_dict(d[k])
         else:
             d[k] = v
-
