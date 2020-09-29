@@ -15,25 +15,30 @@ class DictionaryTreeView(QTreeView):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_menu)
 
-    def open_menu(self, position):
+    def build_menu(self, position):
         menu = QMenu()
-        add_key_action = menu.addAction('Add Key')
 
         # Right click action on item
-        model_index = self.indexAt(position)
-        if model_index.isValid():
-            item = self.model.getItem(model_index)
+        index = self.indexAt(position)
+        if index.isValid():
+            item = self.model.getItem(index)
+            add_key_action = menu.addAction('Add Child Key')
 
             delete_key_action = menu.addAction('Delete Key')
             delete_key_action.triggered.connect(partial(
-                self.model.deleteItem, item, model_index))
+                self.model.deleteItem, item, index))
         # Right click action otherwise
         else:
             item = self.model.rootItem
+            add_key_action = menu.addAction('Add Key')
 
         add_key_action.triggered.connect(partial(self.model.addChild, item))
-        add_key_action.triggered.connect(partial(self.expand, model_index))
+        add_key_action.triggered.connect(partial(self.expand, index))
 
+        return menu
+
+    def open_menu(self, position):
+        menu = self.build_menu(position)
         menu.exec(self.sender().viewport().mapToGlobal(position))
 
     def setData(self, data):
@@ -53,6 +58,14 @@ class DictionaryTreeView(QTreeView):
                 self.model.deleteItem(item, key_index)
         else:
             super().keyPressEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+
+        # Clear selection when clicking outside of item
+        index = self.indexAt(e.pos())
+        if not index.isValid():
+            self.selectionModel().clearSelection()
 
 
 class DictionaryTreeModel(QAbstractItemModel):
@@ -274,10 +287,12 @@ class DictionaryTreeItem:
         return True
 
     def appendChild(self, data):
-        self.childItems.append(DictionaryTreeItem(data, self))
+        child = DictionaryTreeItem(data, self)
+        self.childItems.append(child)
+        return child
 
     def insertColumns(self, position, columns):
-        if column < 0 or column >= len(self.itemData):
+        if position < 0 or position >= len(self.itemData):
             return False
 
         for _ in range(columns):
