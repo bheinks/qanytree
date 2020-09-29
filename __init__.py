@@ -205,7 +205,7 @@ class DictionaryTreeModel(QAbstractItemModel):
             else:
                 parent.appendChild([k, v])
 
-        self.layoutChanged().emit()
+        self.layoutChanged.emit()
 
     def addChild(self, item):
         sibling_keys = [c.data(0) for c in item.childItems]
