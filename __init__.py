@@ -13,9 +13,9 @@ class DictionaryTreeView(QTreeView):
 
         # Right click context menu
         self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.open_menu)
+        self.customContextMenuRequested.connect(self.openMenu)
 
-    def build_menu(self, position):
+    def buildMenu(self, position):
         menu = QMenu()
 
         # Right click action on item
@@ -37,8 +37,8 @@ class DictionaryTreeView(QTreeView):
 
         return menu
 
-    def open_menu(self, position):
-        menu = self.build_menu(position)
+    def openMenu(self, position):
+        menu = self.buildMenu(position)
         menu.exec(self.sender().viewport().mapToGlobal(position))
 
     def setData(self, data):
