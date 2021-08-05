@@ -1,10 +1,8 @@
-from pprint import pprint
-
 from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant
 from PyQt5.QtWidgets import QUndoStack, QUndoCommand
 from anytree.importer import DictImporter
 
-from qanytreeitem import QAnyTreeItem
+from .qanytreeitem import QAnyTreeItem
 
 
 class QAnyTreeModel(QAbstractItemModel):

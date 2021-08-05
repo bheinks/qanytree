@@ -2,7 +2,7 @@
 name = "qanytree"
 version = "0.1"
 description = """An anytree-based implementation of QTreeView and QAbstractItemModel for PyQt5 supporting dynamic
-reordering, importing from and exporting to dictionary, and more."""
+reordering, importing from and exporting to dictionary, undo/redo and more."""
 authors = [
     {name = "bheinks", email = "bheinks@gmail.com"},
 ]
