@@ -1,1 +1,4 @@
+.pdm.toml
+.idea/
 __pycache__/
+__pypackages__/

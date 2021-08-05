@@ -1,0 +1,25 @@
+[project]
+name = "qanytree"
+version = "0.1"
+description = """An anytree-based implementation of QTreeView and QAbstractItemModel for PyQt5 supporting dynamic
+reordering, importing from and exporting to dictionary, and more."""
+authors = [
+    {name = "bheinks", email = "bheinks@gmail.com"},
+]
+dependencies = [
+    "anytree~=2.8",
+    "PyQt5~=5.15",
+]
+requires-python = ">=3.9"
+dynamic = ["classifiers"]
+license = {text = "MIT"}
+
+[project.urls]
+homepage = ""
+
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+
+[tool]
+[tool.pdm]
