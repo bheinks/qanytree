@@ -53,7 +53,7 @@ class QAnyTreeView(QTreeView):
             oldPosition = self.draggedItem.childNumber()
             newPosition = droppedIndex.row()
 
-            self.model().createMoveCommand(parentIndex, oldPosition, parentIndex, newPosition)
+            self.model().moveRow(parentIndex, oldPosition, parentIndex, newPosition)
 
     def itemFromIndex(self, index):
         return self.model().getItem(index)

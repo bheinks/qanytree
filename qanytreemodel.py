@@ -6,87 +6,6 @@ from .qanytreeitem import QAnyTreeItem
 
 
 class QAnyTreeModel(QAbstractItemModel):
-    class MoveCommand(QUndoCommand):
-        def __init__(self, sourceParent, sourceRow, destinationParent, destinationChild, model, parent=None):
-            super().__init__(parent)
-
-            self.sourceParent = sourceParent
-            self.sourceRow = sourceRow
-            self.destinationParent = destinationParent
-            self.destinationChild = destinationChild
-            self.model = model
-
-        def undo(self):
-            self.model.moveRow(self.destinationParent, self.destinationChild, self.sourceParent, self.sourceRow)
-            self.setText('(move item)')
-
-        def redo(self):
-            self.model.moveRow(self.sourceParent, self.sourceRow, self.destinationParent, self.destinationChild)
-            self.setText('(move item)')
-
-    class AddCommand(QUndoCommand):
-        def __init__(self, row, index, model, parent=None):
-            super().__init__(parent)
-
-            self.row = row
-            self.index = index
-            self.model = model
-
-        def undo(self):
-            self.model.removeRow(self.row, self.index)
-            self.setText('(add item)')
-
-        def redo(self):
-            self.model.insertRow(self.row, self.index)
-            self.setText('(add item)')
-
-    class DeleteCommand(QUndoCommand):
-        def __init__(self, row, index, model, parent=None):
-            super().__init__(parent)
-
-            self.row = row
-            self.model = model
-
-            self.parent = model.parent(index)
-            self.item = model.getItem(index)
-            self.data = None
-
-        def undo(self):
-            # Import data into tree
-            importer = DictImporter(nodecls=QAnyTreeItem)
-            item = importer.import_(self.data)
-
-            # Reconstruct branch
-            self.model.beginInsertRows(self.parent, self.row, self.row)
-            item.parent = self.model.getItem(self.parent)
-            self.model.endInsertRows()
-
-            self.setText('(delete item)')
-
-        def redo(self):
-            self.data = self.item.toDict()
-            self.model.removeRow(self.row, self.parent)
-            self.setText('(delete item)')
-
-    class ModifyCommand(QUndoCommand):
-        def __init__(self, oldValue, newValue, index, model, parent=None):
-            super().__init__(parent)
-
-            self.oldValue = oldValue
-            self.newValue = newValue
-            self.index = index
-            self.model = model
-
-            self.result = False
-
-        def undo(self):
-            self.result = self.model.setData_(self.index, self.oldValue)
-            self.setText('(modify item)')
-
-        def redo(self):
-            self.result = self.model.setData_(self.index, self.newValue)
-            self.setText('(modify item)')
-
     def __init__(self, data, parent=None):
         super().__init__(parent)
 
@@ -95,12 +14,12 @@ class QAnyTreeModel(QAbstractItemModel):
         self.undoStack = QUndoStack(self)
 
     ######################
-    # Overriden functions
+    # Overridden functions
     ######################
 
     def index(self, row, column, parent=QModelIndex()):
         if parent.isValid() and parent.column() != 0:
-            QModelIndex()
+            return QModelIndex()
 
         parentItem = self.getItem(parent)
         if not parentItem:
@@ -132,6 +51,12 @@ class QAnyTreeModel(QAbstractItemModel):
         return 0
 
     def insertRows(self, position, rows, parent=QModelIndex()):
+        addCommand = AddCommand(position, rows, parent, self)
+        self.undoStack.push(addCommand)
+
+        return addCommand.result
+
+    def _insertRows(self, position, rows, parent=QModelIndex()):
         parentItem = self.getItem(parent)
         if not parentItem:
             return False
@@ -143,6 +68,12 @@ class QAnyTreeModel(QAbstractItemModel):
         return success
 
     def moveRows(self, sourceParent, sourceRow, count, destinationParent, destinationChild):
+        moveCommand = self.MoveCommand(sourceParent, sourceRow, count, destinationParent, destinationChild, self)
+        self.undoStack.push(moveCommand)
+
+        return moveCommand.result
+
+    def _moveRows(self, sourceParent, sourceRow, count, destinationParent, destinationChild):
         newDestinationChild = destinationChild
         if sourceParent == destinationParent:
             if sourceRow == destinationChild:
@@ -163,6 +94,12 @@ class QAnyTreeModel(QAbstractItemModel):
         return True
 
     def removeRows(self, position, rows, parent=QModelIndex()):
+        deleteCommand = DeleteCommand(position, rows, parent, self)
+        self.undoStack.push(deleteCommand)
+
+        return deleteCommand.result
+
+    def _removeRows(self, position, rows, parent=QModelIndex()):
         parentItem = self.getItem(parent)
         if not parentItem:
             return False
@@ -206,12 +143,12 @@ class QAnyTreeModel(QAbstractItemModel):
             return False
 
         oldValue = self.data(index, role)
-        modifyCommand = self.ModifyCommand(oldValue, value, index, self)
+        modifyCommand = ModifyCommand(oldValue, value, index, self)
         self.undoStack.push(modifyCommand)
 
         return modifyCommand.result
 
-    def setData_(self, index, value):
+    def _setData(self, index, value):
         item = self.getItem(index)
 
         result = item.setData(index.column(), value)
@@ -256,18 +193,6 @@ class QAnyTreeModel(QAbstractItemModel):
             sourceIndex = self.index(sourceRow, column, sourceParent)
             self.setData(destinationIndex, self.data(sourceIndex))
 
-    def createMoveCommand(self, sourceParent, sourceRow, destinationParent, destinationChild):
-        moveCommand = self.MoveCommand(sourceParent, sourceRow, destinationParent, destinationChild, self)
-        self.undoStack.push(moveCommand)
-
-    def createAddCommand(self, row, index):
-        addCommand = self.AddCommand(row, index, self)
-        self.undoStack.push(addCommand)
-
-    def createDeleteCommand(self, row, index):
-        deleteCommand = self.DeleteCommand(row, index, self)
-        self.undoStack.push(deleteCommand)
-
     def getItem(self, index):
         if index.isValid():
             item = index.internalPointer()
@@ -278,3 +203,139 @@ class QAnyTreeModel(QAbstractItemModel):
 
     def toDict(self):
         return self.root.toDict()
+
+
+class MoveCommand(QUndoCommand):
+    def __init__(self, sourceParent, sourceRow, count, destinationParent, destinationChild, model, parent=None):
+        super().__init__(parent)
+
+        self.sourceParent = sourceParent
+        self.sourceRow = sourceRow
+        self.count = count
+        self.destinationParent = destinationParent
+        self.destinationChild = destinationChild
+        self.model = model
+
+        self.result = False
+
+        self.setText('(move item)')
+
+    def undo(self):
+        self.result = self.model._moveRows(self.destinationParent, self.destinationChild, self.count, self.sourceParent,
+                                           self.sourceRow)
+
+    def redo(self):
+        self.result = self.model._moveRows(self.sourceParent, self.sourceRow, self.count, self.destinationParent,
+                                           self.destinationChild)
+
+
+class AddCommand(QUndoCommand):
+    def __init__(self, position, rows, parent, model):
+        super().__init__()
+
+        self.position = position
+        self.rows = rows
+        self.parent = parent
+        self.model = model
+
+        self.result = False
+
+        if rows > 1:
+            self.setText('(add item)')
+        else:
+            self.setText('(add items)')
+
+    def undo(self):
+        self.result = self.model._removeRows(self.position, self.rows, self.parent)
+
+    def redo(self):
+        self.result = self.model._insertRows(self.position, self.rows, self.parent)
+
+
+class DeleteCommand(QUndoCommand):
+    def __init__(self, position, rows, parent, model):
+        super().__init__()
+
+        self.position = position
+        self.rows = rows
+        self.parent = parent
+        self.model = model
+
+        self.indexLocations = getIndexLocations(parent)
+
+        self.result = False
+
+        # Backup data from deleted items
+        self.data = []
+        for row in range(rows):
+            index = model.index(position + row, 0, parent)
+            item = model.getItem(index)
+            self.data.append(item.toDict())
+
+        if rows > 1:
+            self.setText('(delete items)')
+        else:
+            self.setText('(delete item)')
+
+    def undo(self):
+        importer = DictImporter(nodecls=QAnyTreeItem)
+        parent = getIndexFromLocations(self.indexLocations, self.model)
+        parentItem = self.model.getItem(parent)
+
+        self.result = self.model.beginInsertRows(parent, self.position, self.position + self.rows - 1)
+        for row, data in enumerate(self.data):
+            print(data)
+            item = importer.import_(data)
+
+            # Reconstruct branch
+            item.parent = parentItem
+            parentItem.moveChild(parentItem.childCount() - 1, self.position + row)
+
+        self.model.endInsertRows()
+
+    def redo(self):
+        parent = getIndexFromLocations(self.indexLocations, self.model)
+        self.result = self.model._removeRows(self.position, self.rows, parent)
+
+
+class ModifyCommand(QUndoCommand):
+    def __init__(self, oldValue, newValue, index, model):
+        super().__init__()
+
+        self.oldValue = oldValue
+        self.newValue = newValue
+        self.index = index
+        self.model = model
+
+        self.indexLocations = getIndexLocations(index)
+        self.result = False
+
+        self.setText('(modify item)')
+
+    def undo(self):
+        index = getIndexFromLocations(self.indexLocations, self.model)
+        self.result = self.model._setData(index, self.oldValue)
+
+    def redo(self):
+        index = getIndexFromLocations(self.indexLocations, self.model)
+        self.result = self.model._setData(index, self.newValue)
+
+
+def getIndexFromLocations(indexLocations, model, parent=QModelIndex()):
+    index = QModelIndex()
+    for row, column in indexLocations:
+        index = model.index(row, column, parent)
+        parent = index
+
+    return index
+
+
+def getIndexLocations(index):
+    indexLocations = []
+    while index.row() != -1:
+        indexLocations.append((index.row(), index.column()))
+        index = index.parent()
+
+    indexLocations.reverse()
+
+    return indexLocations
