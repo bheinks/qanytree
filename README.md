@@ -1,6 +1,6 @@
 # qanytree
 
-qanytree is an anytree-based implementation of QTreeView and QAbstractItemModel for PyQt5 supporting dynamic reordering, importing from and exporting to dictionary, undo/redo and more.
+qanytree is an [anytree](https://github.com/c0fec0de/anytree)-based implementation of QTreeView and QAbstractItemModel for PyQt5 supporting dynamic reordering, importing from and exporting to dictionary, undo/redo and more.
 
 ## Requirements
 ```
